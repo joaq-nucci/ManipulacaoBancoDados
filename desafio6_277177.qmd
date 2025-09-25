@@ -1,0 +1,105 @@
+---
+title: "Desafio 6"
+author: "Joaquim Bertoldi Nucci 277177"
+format: html
+editor: visual
+---
+
+Questão 1
+
+```{r}
+path = 'dados'
+fname = file.path(path, 'disco.db')
+```
+
+Questão 2
+
+```{r}
+library(RSQLite)
+conn = dbConnect(SQLite(), fname)
+```
+
+Questão 3
+
+```{r}
+dbListTables(conn)
+```
+
+Questão 4
+
+```{r}
+dbListFields(conn, 'customers')
+```
+
+Questão 5
+
+```{r}
+dbGetQuery(conn, 'SELECT COUNT(*) FROM customers')
+```
+
+Questão 6
+
+```{r}
+dbGetQuery(conn, 'SELECT COUNT(*) FROM (SELECT DISTINCT country FROM customers)')
+```
+
+Questão 7
+
+```{r}
+dbGetQuery(conn, 'SELECT DISTINCT country, COUNT(*) FROM customers GROUP BY country ORDER BY COUNT(*) DESC')
+```
+
+Questão 8
+
+```{r}
+dbGetQuery(conn, 'SELECT DISTINCT country, COUNT(*) FROM customers GROUP BY country ORDER BY COUNT(*) DESC LIMIT 5')
+```
+
+Questão 9
+
+```{r}
+dbGetQuery(conn, "SELECT DISTINCT country FROM customers WHERE country GLOB '??????'")
+```
+
+Questão 10
+
+```{r}
+sql1 = paste("SELECT DISTINCT name FROM invoice_items",
+           "INNER JOIN tracks ON tracks.trackid=invoice_items.trackid",
+           "WHERE invoiceid IN",
+           "(SELECT DISTINCT invoiceid FROM customers",
+           "INNER JOIN invoices ON invoices.customerid = customers.customerid",
+           "WHERE country = 'Brazil')")
+dbGetQuery(conn, sql1)
+```
+
+Qual o álbum mais tocado por pais?
+
+```{r}
+sql2 = "SELECT country, title FROM (SELECT c.country, a.title,
+    COUNT(*) AS play_count FROM customers c
+    JOIN invoices i ON c.customerid = i.customerid
+    JOIN invoice_items ii ON i.invoiceid = ii.invoiceid
+    JOIN tracks t ON ii.trackid = t.trackid
+    JOIN albums a ON t.albumid = a.albumid
+  GROUP BY c.country, a.title
+  ORDER BY c.country, play_count DESC) 
+  GROUP BY country"
+dbGetQuery(conn, sql2)
+```
+
+Qual o artista mais tocado por pais?
+
+```{r}
+sql3 = "SELECT country, name FROM (SELECT c.country, ar.name,
+    COUNT(*) AS play_count FROM customers c
+    JOIN invoices i ON c.customerid = i.customerid
+    JOIN invoice_items ii ON i.invoiceid = ii.invoiceid
+    JOIN tracks t ON ii.trackid = t.trackid
+    JOIN albums a ON t.albumid = a.albumid
+    JOIN artists ar ON a.artistid = ar.artistid
+  GROUP BY c.country, ar.name
+  ORDER BY c.country, play_count DESC) 
+  GROUP BY country"
+dbGetQuery(conn, sql3)
+```

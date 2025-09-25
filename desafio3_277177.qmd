@@ -1,0 +1,81 @@
+---
+title: "Desafio 3"
+author: "Joaquim Bertoldi Nucci - RA: 277177"
+format: html
+editor: visual
+---
+
+## Parquet
+
+
+```{r}
+#Pacotes utilizados para o Parquet
+library(arrow)
+library(dplyr)
+```
+
+```{r}
+#Ler o parquet como data frame
+df <- read_parquet("dados/goal_time_epl.parquet") %>% 
+  as.data.frame()
+
+#Nomes das colunas
+names(df)
+
+#Ver as primeiras linhas
+head(df)
+```
+#### Descrição Parquet:
+Este dataframe contém dados de gols marcados na Premier League (Inglesa) durante 10 anos, com 12.548 observações (linhas) e 8 colunas. Cada linha representa um gol, com as seguintes informações: id: identificador único do evento de gol; Team: se o gol foi marcado pelo time da Casa (Home) ou Visitante (Away); Scorer: nome do jogador que fez o gol; Minute: minuto em que o gol ocorreu; AdditionalTime: acréscimos (se o gol foi em tempo adicional); Penalty: indica se foi gol de pênalti (1 = sim, 0 = não); OwnGoal: indica se foi gol contra (1 = sim, 0 = não); index_level_0: índice interno do banco de dados. Este dataframe contém dados de gols marcados na Premier League (Inglesa), com 12.548 observações (linhas) e 8 colunas. Dados disponibilizados no Kaggle ("Football - 10 years of EPL with goal timing")
+
+
+
+## JSON
+
+
+```{r}
+#Pacotes utilizados para o JSON
+library(jsonlite)
+library(dplyr)
+library(purrr)
+```
+
+```{r}
+# Ler o arquivo
+dados <- read_json("dados/season_stats.json", simplifyVector = TRUE)
+
+# Extrair TODAS as estatísticas de time
+extrair_estatisticas_time <- function(jogo_id, time_id) {
+  time <- dados[[jogo_id]][[time_id]]
+  
+  # Converter todas as estatísticas para numérico
+  stats <- time$aggregate_stats
+  stats_numeric <- lapply(stats, function(x) {
+    num <- as.numeric(x)
+    ifelse(is.na(num), 0, num)  # Tratar valores missing
+  })
+  
+  data.frame(
+    jogo_id = jogo_id,
+    time_id = time_id,
+    time_nome = time$team_details$team_name,
+    data = time$team_details$date,
+    rating_time = as.numeric(time$team_details$team_rating),
+    as.data.frame(stats_numeric)
+  )
+}
+
+# Aplicar a todos os jogos e times
+todos_dados <- map_dfr(names(dados), function(jogo_id) {
+  times <- names(dados[[jogo_id]])
+  map_dfr(times, ~ extrair_estatisticas_time(jogo_id, .x))
+})
+
+# Ver todas as colunas disponíveis
+names(todos_dados)
+
+# Visualizar os dados completos
+head(todos_dados)
+```
+#### Descrição JSON:
+Este conjunto de dados contém estatísticas detalhadas de partidas da Premier League inglesa da temporada 2017-2018. Os dados estão estruturados em formato JSON e incluem informações completas sobre: Resultados dos jogos (placares, datas), Estatísticas de equipe (posse de bola, finalizações, escanteios, etc.), Estatísticas individuais dos jogadores (gols, passes, tackles, avaliações) e Formações táticas e posicionamento em campo. Dados disponibilizados no Kaggle ("English Premier League in-game match data")

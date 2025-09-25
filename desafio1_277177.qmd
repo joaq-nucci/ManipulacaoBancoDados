@@ -1,0 +1,46 @@
+---
+title: "Desafio 1"
+author: "Joaquim Bertoldi Nucci RA: 277177"
+format: html
+editor: visual
+---
+
+```{r}
+library(reticulate)
+virtualenv_create("env_me315")
+```
+
+```{r}
+use_virtualenv("env_me315")
+py_install("pandas", envname = "env_me315")
+```
+
+```{r}
+ini <- Sys.time()
+dados <- read.csv(unz('dados/flights.csv.zip', "flights.csv"))
+fim <- Sys.time()
+fim - ini
+```
+
+```{r}
+library(readr)
+ini <- Sys.time()
+dados <- read_csv(unz('dados/flights.csv.zip', "flights.csv"))
+fim <- Sys.time()
+fim - ini
+```
+
+```{python}
+import time
+import pandas as pd
+import zipfile
+
+ini = time.time()
+# abre o zip
+with zipfile.ZipFile("dados/flights.csv.zip") as z:
+    # lê apenas o arquivo flights.csv
+    with z.open("flights.csv") as f:
+        dados = pd.read_csv(f, low_memory=False)
+fim = time.time()
+print("Tempo de leitura:", fim - ini, "segundos")
+```

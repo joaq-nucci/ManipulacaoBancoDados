@@ -1,0 +1,142 @@
+---
+title: "Desafio 8"
+author: "Joaquim Bertoldi Nucci"
+format: html
+editor: visual
+---
+
+```{r}
+cat("Relatório gerado em:", format(Sys.time(), "%d/%m/%Y %H:%M:%S"))
+```
+
+1.  Baixe o arquivo uwmadison.sqlite3. Conecte-se a ele usando o pacote RSQLite, armazenando a conexão em uma variável conn.
+
+```{r}
+library(RSQLite)
+conn = dbConnect(SQLite(), "dados/uwmadison.sqlite3")
+```
+
+2.  Quem são e quantos são os professores que lecionaram disciplinas cujo tópico era estatística (subjects.abbreviation='STAT')
+
+```{r}
+dbGetQuery(conn,
+           "SELECT DISTINCT(instructors.name) FROM instructors INNER JOIN teachings
+           ON instructors.id = teachings.instructor_id INNER JOIN sections
+           ON teachings.section_uuid = sections.uuid INNER JOIN subject_memberships
+           ON subject_memberships.course_offering_uuid = sections.course_offering_uuid
+           INNER JOIN subjects
+           ON subject_memberships.subject_code = subjects.code
+           WHERE subjects.abbreviation = 'STAT'")
+dbGetQuery(conn,
+           "SELECT COUNT (DISTINCT(instructors.name)) FROM instructors INNER JOIN teachings
+           ON instructors.id = teachings.instructor_id INNER JOIN sections
+           ON teachings.section_uuid = sections.uuid INNER JOIN subject_memberships
+           ON subject_memberships.course_offering_uuid = sections.course_offering_uuid
+           INNER JOIN subjects
+           ON subject_memberships.subject_code = subjects.code
+           WHERE subjects.abbreviation = 'STAT'")
+```
+
+3.  O GPA americano é definido numa escala de 0 a 4, em que A = 4, AB = 3.5, B = 3, BC = 2.5, C = 2, D = 1 e F = 0. Determinando a nota média de cada oferecimento pela ponderação da quantidade de alunos em cada extrato com os valores numéricos de cada conceito, indique (no que se referente a disciplinas no assunto de estatística):
+
+Quem é o professor mais difícil?
+
+Quem é o professor mais fácil?
+
+Qual é a disciplina mais difícil?
+
+Qual é a disciplina mais fácil?
+
+```{r}
+# 1. Remove view statprofs se existir
+dbExecute(conn, "DROP VIEW IF EXISTS statprofs")
+
+# 2. Cria a view statprofs com professores e cursos STAT (usando aliases)
+dbExecute(conn, "
+CREATE VIEW statprofs AS
+SELECT DISTINCT i.name AS prof, 
+                c.name AS course, 
+                co.course_uuid
+FROM instructors i
+INNER JOIN teachings t ON i.id = t.instructor_id
+INNER JOIN sections s ON t.section_uuid = s.uuid
+INNER JOIN course_offerings co ON s.course_offering_uuid = co.uuid
+INNER JOIN courses c ON co.course_uuid = c.uuid
+INNER JOIN subject_memberships sm ON sm.course_offering_uuid = s.course_offering_uuid
+INNER JOIN subjects sub ON sm.subject_code = sub.code
+WHERE sub.abbreviation = 'STAT'
+")
+
+# Função para gerar consulta GPA com aliases claros
+gpa_query_template <- function(group_field, order = "ASC", limit = 1) {
+  
+  # group_field deve ser "i.name" ou "c.name" e tabela base será 'instructors' ou 'courses'
+  if (group_field == "i.name") {
+    base_tables <- "
+      instructors i
+      JOIN teachings t ON i.id = t.instructor_id
+      JOIN sections s ON t.section_uuid = s.uuid
+      JOIN course_offerings co ON s.course_offering_uuid = co.uuid
+    "
+    group_by_field <- "i.name"
+    join_condition <- "s.course_offering_uuid = co.uuid"
+  } else if (group_field == "c.name") {
+    base_tables <- "
+      courses c
+      JOIN course_offerings co ON c.uuid = co.course_uuid
+    "
+    group_by_field <- "c.name"
+    join_condition <- "co.uuid = co.uuid"  # só pra sintaxe; não usado
+  } else {
+    stop("group_field deve ser 'i.name' ou 'c.name'")
+  }
+  
+  sprintf("
+    SELECT %s AS nome,
+           ROUND(AVG(
+             CASE 
+               WHEN (COALESCE(gd.a_count,0) + COALESCE(gd.ab_count,0) + COALESCE(gd.b_count,0) + COALESCE(gd.bc_count,0) + COALESCE(gd.c_count,0) + COALESCE(gd.d_count,0) + COALESCE(gd.f_count,0)) = 0 THEN NULL
+               ELSE
+                 (4*COALESCE(gd.a_count,0) + 3.5*COALESCE(gd.ab_count,0) + 3*COALESCE(gd.b_count,0) + 2.5*COALESCE(gd.bc_count,0) + 2*COALESCE(gd.c_count,0) + 1*COALESCE(gd.d_count,0)) * 1.0 /
+                 (COALESCE(gd.a_count,0) + COALESCE(gd.ab_count,0) + COALESCE(gd.b_count,0) + COALESCE(gd.bc_count,0) + COALESCE(gd.c_count,0) + COALESCE(gd.d_count,0) + COALESCE(gd.f_count,0))
+             END
+           ), 2) AS gpa_medio
+    FROM %s
+    JOIN grade_distributions gd ON co.uuid = gd.course_offering_uuid
+    WHERE co.course_uuid IN (SELECT course_uuid FROM statprofs)
+    GROUP BY %s
+    HAVING gpa_medio IS NOT NULL
+    ORDER BY gpa_medio %s
+    LIMIT %d
+  ", group_by_field, base_tables, group_by_field, order, limit)
+}
+
+# Professor mais difícil (menor GPA)
+prof_dificil <- dbGetQuery(conn, gpa_query_template("i.name", "ASC"))
+cat("Professor mais difícil:\n")
+print(prof_dificil)
+
+# Professor mais fácil (maior GPA)
+prof_facil <- dbGetQuery(conn, gpa_query_template("i.name", "DESC"))
+cat("\nProfessor mais fácil:\n")
+print(prof_facil)
+
+# Disciplina mais difícil (menor GPA)
+disc_dificil <- dbGetQuery(conn, gpa_query_template("c.name", "ASC"))
+cat("\nDisciplina mais difícil:\n")
+print(disc_dificil)
+
+# Disciplina mais fácil (maior GPA)
+disc_facil <- dbGetQuery(conn, gpa_query_template("c.name", "DESC"))
+cat("\nDisciplina mais fácil:\n")
+print(disc_facil)
+
+# Remove view statprofs para limpeza
+dbExecute(conn, "DROP VIEW IF EXISTS statprofs")
+```
+
+4.  Desconecte do banco de dados.
+
+```{r}
+dbDisconnect(conn)
+```

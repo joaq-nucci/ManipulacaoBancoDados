@@ -1,0 +1,110 @@
+---
+title: "Desafio 2"
+author: "Joaquim Bertoldi Nucci - RA:277177"
+format: html
+editor: visual
+---
+
+```{r}
+library(reticulate)
+
+reticulate::py_install(c("pandas", "matplotlib"))
+```
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+from datetime import datetime
+import zipfile
+import calendar
+import numpy as np
+```
+
+```{python}
+# Função para processar cada chunk
+def get_stats(chunk):
+    chunk = chunk[
+        (chunk["AIRLINE"].isin(["AA","DL","UA","US"])) &
+        (chunk["ARRIVAL_DELAY"].notna())
+    ]
+    stats = (
+        chunk.groupby(["AIRLINE","DAY","MONTH"])
+        .agg(n=("ARRIVAL_DELAY", "size"),
+             atrasos=("ARRIVAL_DELAY", lambda x: (x>10).sum()))
+        .reset_index()
+    )
+    return stats
+
+# Abrindo o CSV dentro do ZIP
+arquivo_zip = "dados/flights.csv.zip"
+chunksize = 100_000
+all_stats = []
+
+with zipfile.ZipFile(arquivo_zip) as z:
+    with z.open("flights.csv") as f:
+        for chunk in pd.read_csv(f, chunksize=chunksize, usecols=["AIRLINE","DAY","MONTH","ARRIVAL_DELAY"]):
+            all_stats.append(get_stats(chunk))
+
+# Concatenar todos os chunks
+if len(all_stats) == 0:
+    raise ValueError("Nenhum dado encontrado nos chunks!")
+in3 = pd.concat(all_stats, ignore_index=True)
+
+# Computa a porcentagem de atrasos
+def compute_stats(df):
+    grouped = (
+        df.groupby(["AIRLINE","DAY","MONTH"])
+        .agg(Perc=("atrasos","sum"), n=("n","sum"))
+        .reset_index()
+    )
+    grouped["Perc"] = grouped["Perc"]/grouped["n"]
+    grouped["Data"] = pd.to_datetime(
+        dict(year=2015, month=grouped["MONTH"], day=grouped["DAY"]),
+        errors="coerce"
+    )
+    return grouped[["AIRLINE","Data","Perc"]].dropna()
+
+in5 = compute_stats(in3)
+
+# Função para plotar calendário com matplotlib
+def base_calendario(stats, cia, titulo):
+    df = stats[stats["AIRLINE"]==cia].copy()
+    df["Year"] = df["Data"].dt.year
+    df["Month"] = df["Data"].dt.month
+    df["Day"] = df["Data"].dt.day
+    fig, axes = plt.subplots(3, 4, figsize=(10, 6))
+    fig.suptitle(titulo, fontsize=16)
+    for month in range(1, 13):
+        ax = axes[(month-1)//4, (month-1)%4]
+        month_days = df[df["Month"]==month]
+        if month_days.empty:
+            ax.axis("off")
+            continue
+        # criar matriz semana x dia da semana
+        cal = calendar.Calendar(firstweekday=6)  # começa domingo
+        month_matrix = np.full((6,7), np.nan)    # até 6 semanas no mês
+
+        for week_idx, week in enumerate(cal.monthdayscalendar(2015, month)):
+            for day_idx, day in enumerate(week):
+                if day != 0:  # se não for "vazio"
+                    val = month_days.loc[month_days["Day"]==day, "Perc"]
+                    if not val.empty:
+                        month_matrix[week_idx, day_idx] = val.values[0]
+
+        im = ax.imshow(month_matrix, cmap="YlGnBu", vmin=0, vmax=0.6)
+        ax.set_title(calendar.month_name[month])
+        ax.set_xticks(range(7))
+        ax.set_xticklabels(["D","S","T","Q","Q","S","S"])
+        ax.set_yticks([])
+    # adicionar barra de cores
+    cbar = fig.colorbar(im, ax=axes, orientation="vertical", fraction=0.02, pad=0.04)
+    cbar.set_label("Delay %")
+    plt.tight_layout(rect=[0, 0, 0.80, 0.96])
+    plt.show()
+
+# Plota para cada companhia
+base_calendario(in5, "AA", "American Airlines")
+base_calendario(in5, "DL", "Delta Airlines")
+base_calendario(in5, "UA", "United Airlines")
+base_calendario(in5, "US", "US Airways")
+```

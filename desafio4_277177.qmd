@@ -1,0 +1,116 @@
+---
+title: "Desafio 4"
+author: "Joaquim Bertoldi Nucci RA: 277177"
+format: html
+editor: visual
+---
+
+```{r}
+# Pacotes necessários
+library(tidyverse)
+library(leaflet)
+library(kableExtra)
+```
+
+```{r}
+# Função principal
+#=================================
+analisa_aeronave <- function(tail_number, arquivo) {
+  
+  # Leitura do arquivo por partes
+  # Vamos acumular os voos da aeronave desejada
+  voos_filtrados <- list()
+  
+  callback <- function(x, pos) {
+    x %>%
+      filter(TAIL_NUMBER == tail_number) %>%
+      select(YEAR, MONTH, DAY, DAY_OF_WEEK,
+             AIRLINE, FLIGHT_NUMBER, TAIL_NUMBER,
+             ORIGIN_AIRPORT, DESTINATION_AIRPORT,
+             DEPARTURE_TIME, ARRIVAL_TIME, AIR_TIME, DISTANCE,
+             ARRIVAL_DELAY) %>%
+      as.data.frame() %>%
+      bind_rows() ->> voos_filtrados
+  }
+  
+  read_csv_chunked(
+    unz(arquivo, "flights.csv"),
+    callback = DataFrameCallback$new(callback),
+    chunk_size = 100000, # lê de 100k em 100k linhas
+    col_types = cols(.default = "c") # leitura inicial como texto
+  )
+  
+  # Unir tudo em um único data frame
+  voos <- bind_rows(voos_filtrados)
+  
+  # Converter variáveis importantes
+  voos <- voos %>%
+    mutate(
+      YEAR = as.integer(YEAR),
+      MONTH = as.integer(MONTH),
+      DAY = as.integer(DAY),
+      DEPARTURE_TIME = as.integer(DEPARTURE_TIME),
+      ARRIVAL_TIME = as.integer(ARRIVAL_TIME),
+      AIR_TIME = as.numeric(AIR_TIME),
+      DISTANCE = as.numeric(DISTANCE),
+      ARRIVAL_DELAY = as.numeric(ARRIVAL_DELAY),
+      data_hora = make_datetime(YEAR, MONTH, DAY,
+                                DEPARTURE_TIME %/% 100, DEPARTURE_TIME %% 100)
+    ) %>%
+    arrange(data_hora)
+  
+  # Ler a base de aeroportos (assumindo no mesmo diretório)
+  airports <- read_csv(unz(arquivo, "airports.csv"))
+  
+  # Juntar coordenadas de origem
+  voos <- voos %>%
+    left_join(airports %>% select(IATA_CODE, LATITUDE, LONGITUDE),
+              by = c("ORIGIN_AIRPORT" = "IATA_CODE")) %>%
+    rename(lat_origem = LATITUDE, lon_origem = LONGITUDE) %>%
+    left_join(airports %>% select(IATA_CODE, LATITUDE, LONGITUDE),
+              by = c("DESTINATION_AIRPORT" = "IATA_CODE")) %>%
+    rename(lat_destino = LATITUDE, lon_destino = LONGITUDE)
+  
+  # Estatística adicional: velocidade média
+  voos <- voos %>%
+    mutate(velocidade_media = DISTANCE / (AIR_TIME/60)) # mph
+  
+  # Criar mapa leaflet
+  mapa <- leaflet(voos) %>%
+    addProviderTiles(providers$CartoDB.Positron) %>%
+    addPolylines(
+      lng = c(rbind(voos$lon_origem, voos$lon_destino)),
+      lat = c(rbind(voos$lat_origem, voos$lat_destino)),
+      weight = scales::rescale(voos$velocidade_media, to = c(1, 6)),
+      color = "blue",
+      opacity = 0.6
+    ) %>%
+    addCircleMarkers(lng = voos$lon_origem, lat = voos$lat_origem,
+                     radius = 4, color = "green", label = voos$ORIGIN_AIRPORT) %>%
+    addCircleMarkers(lng = voos$lon_destino, lat = voos$lat_destino,
+                     radius = 4, color = "red", label = voos$DESTINATION_AIRPORT)
+  
+  # Retorno da função
+  return(list(
+    tabela = voos,
+    grafico = mapa
+  ))
+}
+```
+
+```{r}
+# Caminho para os dados
+arquivo <- file.path("dados", "flights.csv.zip")
+
+# Executar a função para um avião específico
+resultado <- analisa_aeronave("N3HYAA", arquivo)
+
+# Ver a tabela tidy
+resultado$tabela %>%
+  head(10) %>%  # só para não estourar o relatório
+  kable(caption = "Voos da aeronave N3HYAA") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+
+# Ver o mapa
+resultado$grafico
+```
