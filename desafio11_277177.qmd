@@ -1,0 +1,112 @@
+---
+title: "Desafio 11"
+author: "Joaquim Bertoldi Nucci - RA: 277177"
+format: html
+editor: visual
+---
+
+```{r}
+cat("Relatório gerado em:", format(Sys.time(), "%d/%m/%Y %H:%M:%S"))
+```
+
+```{r}
+library(reticulate)
+```
+
+```{r}
+reticulate::py_install(c("polars", "matplotlib", "seaborn", "pandas"))
+```
+
+```{python}
+import polars as pl
+import matplotlib.pyplot as plt
+import seaborn as sns
+```
+
+1- Utilizando o arquivo renda_adulta.csv e sabendo que ele não possui cabeçalho, faça a importação do banco de dados utilizando os nomes das colunas conforme apresentado acima e na sequência ali indicada. No momento da importação do arquivo, você deve, também, indicar os tipos de cada uma das colunas. Utilize o fato de que o símbolo? representa valores faltantes.
+
+```{python}
+# Definir nomes das colunas
+nomes_colunas = [
+    "age", "workclass", "fnlwgt", "education", "education_num",
+    "marital_status", "occupation", "relationship", "race", "sex",
+    "capital_gain", "capital_loss", "hours_per_week",
+    "native_country", "income"
+]
+# Importar o CSV sem cabeçalho
+renda = pl.read_csv(
+    "dados/renda_adulta.csv",
+    has_header=False,
+    new_columns=nomes_colunas,
+    null_values="?"
+)
+```
+
+2- Apresente os tipos de cada uma das coluna.
+```{python}
+renda.schema
+```
+
+3- Apresente as dimensões da tabela de dados.
+```{python}
+renda.shape
+```
+
+4- Quantas pessoas recebem acima de $50.000 e quantas pessoas recebem abaixo deste limiar?
+```{python}
+renda.group_by("income").len()
+```
+
+5- Crie um objeto chamado renda_longo, no qual você transforma as colunas capital-gain e capital-loss (formato wide) para formato longo. Os valores destas variáveis devem ser armazenados numa nova coluna chamada Valor e os tipos de valores (gain e loss) devem ser armazenados numa coluna chamada tipo.
+```{python}
+renda_longo = renda.unpivot(
+    index=[
+        "age", "workclass", "fnlwgt", "education", "education_num",
+        "marital_status", "occupation", "relationship", "race", "sex",
+        "hours_per_week", "native_country", "income"
+    ],
+    on=["capital_gain", "capital_loss"],
+    variable_name="tipo",
+    value_name="valor"
+)
+renda_longo
+```
+
+6- Quais são as médias de horas trabalhadas por classe salarial?
+```{python}
+renda.group_by("income").agg(
+    pl.col("hours_per_week").mean().alias("media_horas"))
+```
+
+7- Se cada linha representa uma pessoa, quantas pessoas foram amostradas em cada profissão?
+```{python}
+renda.group_by("occupation").len().sort("len", descending=True)
+```
+
+8- Crie um gráfico de barras que apresente o número médio de horas trabalhadas semanalmente em função do nível salarial.
+
+```{python}
+media_horas = renda.group_by("income").agg(
+    pl.col("hours_per_week").mean().alias("media_horas")
+).to_pandas()
+
+sns.barplot(data=media_horas, x="income", y="media_horas", palette="Set1")
+plt.title("Média de horas trabalhadas por classe salarial")
+plt.xlabel("Classe salarial")
+plt.ylabel("Horas por semana")
+plt.show()
+```
+
+9- Desafio: existe alguma evidência de discriminação salarial entre gêneros biológicos?
+```{python}
+tab = (
+    renda.group_by(["sex", "income"])
+    .len()
+    .with_columns(
+        (pl.col("len") / pl.col("len").sum().over("sex")).alias("proporcao")
+    )
+)
+
+tab
+```
+
