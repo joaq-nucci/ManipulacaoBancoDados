@@ -2,58 +2,122 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Desafios - Joaquim Nucci</title>
+  <title>Desafios de Banco de Dados - Joaquim Nucci</title>
   <style>
+    /* Estilo geral */
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f9f9f9;
-      margin: 40px;
-      color: #333;
-    }
-    h1 {
-      text-align: center;
-      color: #222;
-      margin-bottom: 40px;
-    }
-    ul {
-      list-style-type: none;
+      font-family: 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #eef2f3, #d9e2ec);
+      margin: 0;
       padding: 0;
-      max-width: 400px;
-      margin: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
     }
-    li {
-      background-color: #fff;
-      margin: 10px 0;
-      padding: 12px 20px;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+
+    /* Cabeçalho */
+    header {
+      background-color: #004c97;
+      width: 100%;
+      padding: 30px 0;
       text-align: center;
+      color: white;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
     }
+
+    header h1 {
+      margin: 0;
+      font-size: 2em;
+    }
+
+    header p {
+      margin-top: 8px;
+      font-size: 1.1em;
+      color: #cfe2ff;
+    }
+
+    /* Lista */
+    main {
+      margin-top: 40px;
+      background-color: white;
+      padding: 30px 40px;
+      border-radius: 15px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 500px;
+    }
+
+    h2 {
+      text-align: center;
+      color: #004c97;
+      margin-bottom: 25px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li {
+      margin: 10px 0;
+    }
+
     a {
+      display: block;
+      background-color: #e9f2ff;
+      color: #004c97;
       text-decoration: none;
-      color: #0077cc;
-      font-weight: bold;
-      font-size: 16px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-align: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
     }
+
     a:hover {
-      color: #005fa3;
+      background-color: #004c97;
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    footer {
+      margin-top: auto;
+      padding: 20px;
+      font-size: 0.9em;
+      color: #666;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <h1>Desafios de Manipulação de Banco de Dados</h1>
-  <ul>
-    <li><a href="desafio1_277177.html">Desafio 1</a></li>
-    <li><a href="desafio2_277177.html">Desafio 2</a></li>
-    <li><a href="desafio3_277177.html">Desafio 3</a></li>
-    <li><a href="desafio4_277177.html">Desafio 4</a></li>
-    <li><a href="desafio5_277177.html">Desafio 5</a></li>
-    <li><a href="desafio6_277177.html">Desafio 6</a></li>
-    <li><a href="desafio7_277177.html">Desafio 7</a></li>
-    <li><a href="desafio8_277177.html">Desafio 8</a></li>
-    <li><a href="desafio9_277177.html">Desafio 9</a></li>
-    <li><a href="desafio10_277177.html">Desafio 10</a></li>
-    <li><a href="desafio11_277177.html">Desafio 11</a></li>
-  </ul>
+  <header>
+    <h1>Desafios de Banco de Dados</h1>
+    <p>Aluno: <strong>Joaquim B. Nucci</strong></p>
+  </header>
+
+  <main>
+    <h2>Lista de Desafios</h2>
+    <ul>
+      <li><a href="desafio1_277177.html">Desafio 1</a></li>
+      <li><a href="desafio2_277177.html">Desafio 2</a></li>
+      <li><a href="desafio3_277177.html">Desafio 3</a></li>
+      <li><a href="desafio4_277177.html">Desafio 4</a></li>
+      <li><a href="desafio5_277177.html">Desafio 5</a></li>
+      <li><a href="desafio6_277177.html">Desafio 6</a></li>
+      <li><a href="desafio7_277177.html">Desafio 7</a></li>
+      <li><a href="desafio8_277177.html">Desafio 8</a></li>
+      <li><a href="desafio9_277177.html">Desafio 9</a></li>
+      <li><a href="desafio10_277177.html">Desafio 10</a></li>
+      <li><a href="desafio11_277177.html">Desafio 11</a></li>
+    </ul>
+  </main>
+
+  <footer>
+    © 2025 Joaquim B. Nucci — Todos os direitos reservados.
+  </footer>
 </body>
 </html>
