@@ -1,0 +1,99 @@
+---
+title: "Desafio 13"
+author: "Joaquim Bertoldi Nucci - RA: 277177"
+format: 
+  html:
+    self-contained: true
+editor: visual
+---
+
+```{r}
+cat("Relatório gerado em:", format(Sys.time(), "%d/%m/%Y %H:%M:%S"))
+```
+
+# SQLite com Polars
+
+### Pacotes
+
+Pacotes do R:
+
+```{r}
+library(reticulate)
+library(readr)
+library(RSQLite)
+```
+
+```{r}
+#| include: false
+use_virtualenv("~/.virtualenvs/r-reticulate", required = TRUE)
+```
+
+```{r}
+#| message: false
+#| include: false
+#| warning: false
+reticulate::py_install("polars")
+```
+
+Pacotes do Python:
+
+```{python}
+import polars as pl
+import sqlite3
+```
+
+### 1) Crie um banco de dados SQLite utilizando os 3 arquivos acima. O banco de dados deve conter as seguintes tabelas: basics, ratings e principals
+
+```{r}
+basics <- read_tsv("dados/title.basics0.tsv.gz", na = "\\N")
+ratings <- read_tsv("dados/title.ratings.tsv.gz", na = "\\N")
+principals <- read_tsv("dados/title.principals0.tsv.gz", na = "\\N")
+
+conn = dbConnect(SQLite(), "dados/movies.sqlite3")
+dbWriteTable(conn, "basics", basics, overwrite = TRUE)
+dbWriteTable(conn, "ratings", ratings, overwrite = TRUE)
+dbWriteTable(conn, "principals", principals, overwrite = TRUE)
+dbDisconnect(conn)
+```
+
+### 2) Quais são os 5 filmes com as maiores notas (averageRating)? Apresente uma solução capaz de desempatar os filmes baseando-se no número de votos recebidos.
+
+```{python}
+conn = sqlite3.connect("dados/movies.sqlite3")
+pl.read_database("""
+   SELECT primaryTitle, averageRating, numVotes FROM ratings
+   INNER JOIN basics
+   ON ratings.tconst = basics.tconst
+   ORDER BY averageRating DESC, numVotes DESC
+   LIMIT 5
+""", conn)
+```
+
+### 3) Qual é o gênero mais frequente entre os filmes com nota maior que 8?
+
+```{python}
+pl.read_database("""
+   SELECT genres, COUNT(*) AS n FROM ratings
+   INNER JOIN basics
+   ON ratings.tconst = basics.tconst
+   WHERE averageRating > 8
+   GROUP BY genres
+   ORDER BY n DESC
+   LIMIT 5
+""", conn)
+```
+
+### 4) Quais são os 3 atores/atrizes que mais participaram de filmes com nota maior que 7.5?
+
+```{python}
+pl.read_database("""
+   SELECT nconst, COUNT(*) AS n FROM ratings
+   INNER JOIN principals
+   ON ratings.tconst = principals.tconst
+   WHERE averageRating > 7.5 AND category IN ('actor', 'actress')
+   GROUP BY nconst
+   ORDER BY n DESC
+   LIMIT 3
+""", conn)
+```
+
